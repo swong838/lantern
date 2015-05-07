@@ -1,55 +1,52 @@
-//#include <Adafruit_NeoPixel.h>
-
+#include <Adafruit_NeoPixel.h>
+#include <avr/power.h>
 /* LED info */
-#define NUMPIXELS   2
-#define RED         200
-#define GREEN       145
-#define BLUE        0
-//Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
-
+const int   NUMPIXELS = 2,
 /* chip IO */
-#define PIXEL_PIN   1
-#define BUTTON_PIN  2
+            PIXEL_PIN = 1,
+/* modes */
+            STEADY = 0,
+            FLARE = 1,
+            GUTTER = 2,
+            MAX_BRIGHTNESS_DELTA = 4;
 
 /* time */
-#define RUNTIME     14400000    // 4 hours
-unsigned long       startTime;
+const long RUNTIME = 14400000;    // 4 hours
+unsigned long startTime;
 
-/* modes */
+/* instantiate Pixel object */
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-#define STEADY      0
-#define FLARE       1
-#define GUTTER      2
-
-void setup() {
-    randomSeed(analogRead(0));
-
-    // trinket setup
-    #if defined (__AVR_ATtiny85__)
-      if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
-    #endif
-
-    // init neopixel library
-    //pixels.begin(); 
-    startTime = millis();
-
-    
-}
+uint32_t whitish_yellow = pixels.Color(250, 230, 210);
 
 long getElapsedTime() {
     return millis() - startTime;
 }
 
-void updatePixels() {
+void setColor(uint32_t targetColor) {
     for(int i=0; i < NUMPIXELS; i++) {
-        // pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
-        //pixels.setPixelColor(i, pixels.Color(0,150,0)); // Moderately bright green color.
-        //pixels.show();
+        pixels.setPixelColor(i, targetColor);
+        pixels.show();
     }
 }
 
-void getTargetBrightness(int mode) {
+void updateBrightness(int brightness) {
+    pixels.setBrightness(brightness);
+    pixels.show();
+}
 
+int getNewTargetBrightness(int mode) {
+    switch(mode){
+        case FLARE:
+            return (150 + rand() % 90);     //150-240
+            break;
+        case GUTTER:
+            return (30 + rand() % 50);      //30-80
+            break;
+        default:
+            return (180 + rand() % 20);     //180-200
+            break;
+    }
 }
 
 
@@ -59,7 +56,7 @@ void getTargetBrightness(int mode) {
 // 2 = gutter
 int getNewMode() {
     int newMode = 0;
-    long diceRoll = random(100);
+    int diceRoll = rand() % 100;
     //long age = getElapsedTime();
     // age affects the frequency of gutter mode
     if(diceRoll < 90) {
@@ -88,13 +85,23 @@ long getModeDuration(int mode) {
             max = 20000;
             break;
         default:
-            min = 10000;
-            max = 60000;
+            min = 180000;
+            max = 300000;
             break;
     }
-    return random(min, max);
+    return (min + rand() % max);
 }
 
+void setup() {
+    srand(analogRead(0));
+#if defined (__AVR_ATtiny85__)
+    if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
+#endif
+    // init neopixel library
+    pixels.begin(); 
+    startTime = millis();
+    setColor(whitish_yellow);
+}
 
 void loop() {
     //static int ageCheck = 0;
@@ -114,8 +121,6 @@ void loop() {
 
     // check for button input
     // check elapsed time
-
-
 
 
     //ageCheck = (ageCheck++ % 100);
