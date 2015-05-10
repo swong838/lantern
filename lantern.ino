@@ -3,11 +3,12 @@
 /* LED info */
 const int   NUMPIXELS = 2,
 /* chip IO */
-            PIXEL_PIN = 1,
+            PIXEL_PIN = 0,
 /* modes */
             STEADY = 0,
             FLARE = 1,
             GUTTER = 2,
+            MAX_PIXEL_BRIGHTNESS = 256;
             MAX_BRIGHTNESS_DELTA = 4;
 
 /* time */
@@ -17,7 +18,9 @@ unsigned long startTime;
 /* instantiate Pixel object */
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
+/* colors! */
 uint32_t whitish_yellow = pixels.Color(250, 230, 210);
+uint32_t more_blue = pixels.Color(165, 165, 210);
 
 long getElapsedTime() {
     return millis() - startTime;
@@ -92,6 +95,26 @@ long getModeDuration(int mode) {
     return (min + rand() % max);
 }
 
+int getPulseDuration(int mode) {
+    int min = 0;
+    int max = 0;
+    switch(mode) {
+        case (FLARE || GUTTER):
+            return (150 + rand() % 250);     //150-400
+            break;
+        default:
+            return (500 + rand() % 500);     //500-1000
+            break;
+    }
+}
+
+void doIlluminate(int mode) {
+    int pulseDuration = getPulseDuration(mode);
+    int targetBrightness = getNewTargetBrightness(mode);
+    long pulseStart = millis();
+}
+
+
 void setup() {
     srand(analogRead(0));
 #if defined (__AVR_ATtiny85__)
@@ -106,11 +129,10 @@ void setup() {
 void loop() {
     //static int ageCheck = 0;
     static int mode = 0;
-    static long currentModeDuration = random(3000, 300000);
-    static int currentActionDuration = 500;
+    static long currentModeDuration = 0;
 
     if(millis() - startTime < currentModeDuration) {
-        // run fadeTo w/ current mode
+        doIlluminate(mode);
     }
     else {
         mode = getNewMode();
