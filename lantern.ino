@@ -30,7 +30,7 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO
 /* colors! */
 uint32_t    raw_red = pixels.Color(255,0,0),
             hot_yellow = pixels.Color(255,255, 210),
-            whitish_yellow = pixels.Color(240, 235, 220),
+            whitish_yellow = pixels.Color(250, 235, 215),
             dim_blue = pixels.Color(35, 65, 150);
 
 /* operation mode*/
@@ -47,7 +47,7 @@ void setColor(int mode) {
     uint32_t targetColor;
     switch(mode) {
         case FLARE:
-            targetColor = raw_red;
+            targetColor = hot_yellow;
             break;
         case GUTTER:
             targetColor = dim_blue;
@@ -63,16 +63,16 @@ void setColor(int mode) {
 }
 
 uint8_t getNewTargetBrightness(int mode) {
-    uint8_t newBrightness = 255;
+    uint8_t newBrightness = 200;
     switch(mode) {
         case FLARE:
-            newBrightness = (100 + rand() % 150);     //100-250
+            newBrightness = random(100, 250);
             break;
         case GUTTER:
-            newBrightness = (15 + rand() % 50);      //15-65
+            newBrightness = random(15, 65);      //15-65
             break;
         default:
-            newBrightness = (180 + rand() % 50);     //180-230
+            newBrightness = random(220, 240);     //180-230
             break;
     }
     return newBrightness;
@@ -85,15 +85,13 @@ uint8_t getNewTargetBrightness(int mode) {
 // 2 = gutter
 int getNewMode() {
     int newMode = 0;
-    int diceRoll = rand() % 100;
+    int diceRoll = random(0, 100);
     //long age = getElapsedTime();
     // age affects the frequency of gutter mode
-    //if (diceRoll < 90) {
-    if (diceRoll < 33) {    // [][][]
+    if (diceRoll < 90) {
         newMode = STEADY;
     }
-    //else if (diceRoll < 97) {
-    else if (diceRoll < 66) {   //[][][]
+    else if (diceRoll < 97) {
         newMode = FLARE;
     }
     else {
@@ -104,36 +102,32 @@ int getNewMode() {
 
 // figure out how long to stay in this mode
 unsigned long getModeDuration(int mode) {
-    unsigned long min = 0;
-    unsigned long max = 0;
+    unsigned long duration = 0;
     switch(mode) {
         case FLARE:
-            min = 3000;
-            max = 6000;
+            duration = random(3000000, 6000000);
             break;
         case GUTTER:
-            min = 2000;
-            max = 20000;
+            duration = random(2000000, 20000000);
             break;
         default:
-            min = 180000;
-            max = 300000;
+            duration = random(180000000, 300000000);
             break;
     }
-    // return (min + rand() % max);
-    return 5000; //[][][]
+    // return duration;
+    return 1000; //[][][]
 }
 
-int getPulseDuration(int mode) {
+unsigned long getPulseDuration(int mode) {
     int min = 0;
     int max = 0;
-    int pulse = 0;
+    unsigned long pulse = 0;
     switch(mode) {
         case (FLARE || GUTTER):
-            pulse = (300 + rand() % 500);
+            pulse = random(300000, 800000);
             break;
         default:
-            pulse = (1000 + rand() % 1000);
+            pulse = random(1000000, 2000000);
             break;
     }
     return pulse;
@@ -142,9 +136,9 @@ int getPulseDuration(int mode) {
 void doIlluminate() {
     uint8_t currentBrightness = pixels.getBrightness();
     uint8_t newBrightness = 0;
-
     int delta = ((targetBrightness - currentBrightness) / pulseDuration);
     newBrightness = currentBrightness - delta;
+
     if (newBrightness < MIN_PIXEL_BRIGHTNESS || newBrightness >= MAX_PIXEL_BRIGHTNESS || newBrightness == currentBrightness) {
         pulseDuration = 0;
         return;
@@ -166,7 +160,7 @@ bool clocktick() {
 }
 
 void setup() {
-    srand(analogRead(0));
+    randomSeed(analogRead(0));
 #if defined (__AVR_ATtiny85__)
     if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
 #endif
@@ -182,10 +176,10 @@ void loop() {
             prevMode = mode;
             mode = getNewMode();
             currentModeDuration = getModeDuration(mode);
-            pulseDuration = getPulseDuration(mode);
-            targetBrightness = getNewTargetBrightness(mode);
+            pulseDuration = 0;
             setColor(mode);
-        } else if (pulseDuration <= 0) {
+        }
+        if (pulseDuration <= 0) {
             pulseDuration = getPulseDuration(mode);
             targetBrightness = getNewTargetBrightness(mode);
         }
