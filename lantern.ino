@@ -1,21 +1,26 @@
 #include <Adafruit_NeoPixel.h>
 #include <avr/power.h>
 /* LED info */
-const int   NUMPIXELS = 3,
+const int       
+    NUMPIXELS = 3,
 /* chip IO */
-            PIXEL_PIN = 0,
+    PIXEL_PIN = 0,
 /* modes */
-            STEADY = 0,
-            FLARE = 1,
-            GUTTER = 2,
-            MIN_PIXEL_BRIGHTNESS = 0,
-            MAX_PIXEL_BRIGHTNESS = 255;
-  
-//
+    STEADY = 0,
+    FLARE = 1,
+    GUTTER = 2,
+    TICK_RATE = 10;
+
+const int  
+    LOW_B = 25,
+    MID_B = 75,
+    HIGH_B = 120,
+    MAX_B = 180;
+
 /* time */
 const unsigned long
-    RUNTIME = 14400000,             // 4 hours
-    EXPIRE = millis() + RUNTIME;    // go out at this time
+            RUNTIME = 14400000,             // 4 hours
+            EXPIRE = millis() + RUNTIME;    // go out at this time
 
 unsigned long
     startTime = 0,                  // start
@@ -28,15 +33,14 @@ unsigned long
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 /* colors! */
-uint32_t    raw_red = pixels.Color(255,0,0),
-            hot_yellow = pixels.Color(255,255, 210),
-            whitish_yellow = pixels.Color(250, 235, 215),
-            dim_blue = pixels.Color(35, 65, 150);
+uint32_t    raw_red = pixels.Color(MAX_B, 0, 0),
+            hot_yellow = pixels.Color(MAX_B, MAX_B, HIGH_B),
+            whitish_yellow = pixels.Color(MAX_B, HIGH_B, MID_B),
+            dim_blue = pixels.Color(LOW_B, MID_B, HIGH_B);
 
 /* operation mode*/
 int mode = 0,
     prevMode = 0;
-uint8_t targetBrightness = 0;
 
 unsigned long getElapsedTime() {
     return millis() - startTime;
@@ -63,18 +67,19 @@ void setColor(int mode) {
 }
 
 uint8_t getNewTargetBrightness(int mode) {
-    uint8_t newBrightness = 200;
+    int newBrightness;
     switch(mode) {
         case FLARE:
-            newBrightness = random(100, 250);
+            newBrightness = random(MID_B, MAX_B);
             break;
         case GUTTER:
-            newBrightness = random(15, 65);      //15-65
+            newBrightness = random(0, LOW_B);      //15-65
             break;
         default:
-            newBrightness = random(220, 240);     //180-230
+            newBrightness = random(HIGH_B, MAX_B);     //180-230
             break;
     }
+    //newBrightness = 100;
     return newBrightness;
 }
 
@@ -97,7 +102,8 @@ int getNewMode() {
     else {
         newMode = GUTTER;
     }
-    return newMode;
+    //return newMode;
+    return STEADY;//[][][]
 }
 
 // figure out how long to stay in this mode
@@ -105,17 +111,17 @@ unsigned long getModeDuration(int mode) {
     unsigned long duration = 0;
     switch(mode) {
         case FLARE:
-            duration = random(3000000, 6000000);
+            duration = random(3000, 6000);
             break;
         case GUTTER:
-            duration = random(2000000, 20000000);
+            duration = random(2000, 5000);
             break;
         default:
-            duration = random(180000000, 300000000);
+            duration = random(180000, 300000);
             break;
     }
-    // return duration;
-    return 1000; //[][][]
+    duration = 1000;    //[][][]
+    return duration;
 }
 
 unsigned long getPulseDuration(int mode) {
@@ -124,22 +130,23 @@ unsigned long getPulseDuration(int mode) {
     unsigned long pulse = 0;
     switch(mode) {
         case (FLARE || GUTTER):
-            pulse = random(300000, 800000);
+            pulse = random(125, 150);
             break;
         default:
-            pulse = random(1000000, 2000000);
+            pulse = random(200, 300);
             break;
     }
+
+    pulse = 200;//[][][]
     return pulse;
 }
 
-void doIlluminate() {
-    uint8_t currentBrightness = pixels.getBrightness();
-    uint8_t newBrightness = 0;
-    int delta = ((targetBrightness - currentBrightness) / pulseDuration);
+void doIlluminate(uint8_t targetBrightness, uint8_t currentBrightness) {
+    uint8_t newBrightness;
+    uint8_t delta = ((currentBrightness - targetBrightness) / pulseDuration);
     newBrightness = currentBrightness - delta;
 
-    if (newBrightness < MIN_PIXEL_BRIGHTNESS || newBrightness >= MAX_PIXEL_BRIGHTNESS || newBrightness == currentBrightness) {
+    if (newBrightness <= 0 || newBrightness >= MAX_B || newBrightness == currentBrightness) {
         pulseDuration = 0;
         return;
     }
@@ -151,10 +158,11 @@ void doIlluminate() {
 
 bool clocktick() {
     currentTime = millis();
-    if (currentTime - prevTime > 1) {
+    if (currentTime - prevTime > TICK_RATE) {
         prevTime = currentTime;
         return true;
-    } else {
+    }
+    else {
         return false;
     }
 }
@@ -171,7 +179,10 @@ void setup() {
 }
 
 void loop() {
+    uint8_t currentBrightness,
+            targetBrightness;
     if (clocktick()) {
+        currentBrightness = pixels.getBrightness();
         if (currentModeDuration <= 0) {
             prevMode = mode;
             mode = getNewMode();
@@ -183,7 +194,9 @@ void loop() {
             pulseDuration = getPulseDuration(mode);
             targetBrightness = getNewTargetBrightness(mode);
         }
-        doIlluminate();
+        if(targetBrightness != currentBrightness) {
+            doIlluminate(targetBrightness, currentBrightness);
+        }
         currentModeDuration--;
         pulseDuration--;
     }
