@@ -9,19 +9,17 @@ const int
     STEADY = 0,
     FLARE = 1,
     GUTTER = 2,
-    TICK_RATE = 10;
-
-const int  
-    LOW_B = 25,
-    LOWISH_B = 40,
+    TICK_RATE = 10,  
+    LOW_B = 35,
+    LOWISH_B = 50,
     MID_B = 75,
     HIGH_B = 120,
     MAX_B = 180;
 
 /* time */
 const unsigned long
-            RUNTIME = 14400000,             // 4 hours
-            EXPIRE = millis() + RUNTIME;    // go out at this time
+    RUNTIME = 14400000,             // 4 hours
+    EXPIRE = millis() + RUNTIME;    // go out at this time
 
 unsigned long
     startTime = 0,                  // start
@@ -31,17 +29,8 @@ unsigned long
 /* instantiate Pixel object */
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-/* colors! */
-
-uint32_t    raw_red = pixels.Color(MAX_B, 0, 0),
-            hot_yellow = pixels.Color(MAX_B, MAX_B, HIGH_B),
-            whitish_yellow = pixels.Color(MAX_B, HIGH_B, MID_B),
-            dim_blue = pixels.Color(LOW_B, MID_B, HIGH_B);
-
-
 /* operation mode*/
 int mode = 0,
-    prevMode = 0,
     pulseDuration = 0,              // time remaining in current doIlluminate() action
     targetBrightness = 0,
     currentBrightness = 0;
@@ -59,13 +48,13 @@ uint32_t getColorAndBrightnessFromRed(int red) {
             blue = red * .75;
             break;
         case GUTTER:
-            blue = red % LOW_B;
-            green = (blue * .6);
-            red = (blue * .5);
+            blue = red * .5;
+            green = blue * .4;
+            red = blue * .45;
             break;
         default:
-            green = red * .66;
-            blue = red * .41;
+            green = red * .76;
+            blue = red * .61;
             break;
     }
     return pixels.Color(red, green, blue);
@@ -79,17 +68,17 @@ void applyLighting(uint32_t targetColor) {
     pixels.show();
 }
 
-int getNewKeyBrightness(int mode) {
+int getNewKeyBrightness() {
     int newBrightness;
     switch(mode) {
         case FLARE:
             newBrightness = random(MID_B, MAX_B);
             break;
         case GUTTER:
-            newBrightness = random(LOW_B, LOWISH_B);      
+            newBrightness = random(LOW_B, LOWISH_B); 
             break;
         default:
-            newBrightness = random(MID_B, MAX_B);
+            newBrightness = random(HIGH_B, MAX_B);
             break;
     }
     return newBrightness;
@@ -103,8 +92,6 @@ int getNewKeyBrightness(int mode) {
 int getNewMode() {
     int newMode = 0;
     int diceRoll = random(0, 100);
-    //long age = getElapsedTime();
-    // age affects the frequency of gutter mode
     if (diceRoll < 90) {
         newMode = STEADY;
     }
@@ -118,7 +105,7 @@ int getNewMode() {
 }
 
 // figure out how long to stay in this mode
-unsigned long getModeDuration(int mode) {
+unsigned long getModeDuration() {
     unsigned long duration = 0;
     switch(mode) {
         case FLARE:
@@ -131,18 +118,20 @@ unsigned long getModeDuration(int mode) {
             duration = random(180000, 300000);
             break;
     }
-    duration = 10000;    //[][][]
     return duration;
 }
 
-unsigned long getPulseDuration(int mode) {
+unsigned long getPulseDuration() {
     int pulse;
     switch(mode) {
-        case (FLARE || GUTTER):
-            pulse = random(2, 7);
+        case FLARE:
+            pulse = random(2, 3);
             break;
+        case GUTTER:
+            pulse = random(4, 8);
+            break;    
         default:
-            pulse = random(15, 25);
+            pulse = random(20, 50);
             break;
     }
     return pulse;
@@ -176,20 +165,15 @@ void loop() {
     if (currentTime - prevTime > TICK_RATE) {
         prevTime = currentTime;
         if (currentModeExpiry <= currentTime) {
-            prevMode = mode;
             mode = getNewMode();
-            currentModeExpiry = getModeDuration(mode);
+            currentModeExpiry = getModeDuration() + currentTime;
             pulseDuration = 0;
+        }        
+        if (pulseDuration <= 0 || targetBrightness == currentBrightness) {
+            pulseDuration = getPulseDuration();
+            targetBrightness = getNewKeyBrightness();
         }
-        
-        if (pulseDuration <= 0) {
-            pulseDuration = getPulseDuration(mode);
-            targetBrightness = getNewKeyBrightness(mode);
-        }
-        if(targetBrightness != currentBrightness) {
-            doIlluminate();
-        }
-        
+        doIlluminate();
         pulseDuration--;
     }
 }
