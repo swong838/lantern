@@ -4,24 +4,24 @@
 const int       
     NUMPIXELS = 3,
 /* chip IO */
-    PIXEL_PIN = 0,
+    PIXEL_PIN = 1,
 /* modes */
     STEADY = 0,
     FLARE = 1,
     GUTTER = 2,
     TICK_RATE = 10,  
-    LOW_B = 35,
-    LOWISH_B = 50,
+    LOW_B = 45,
+    LOWISH_B = 75,
     MID_B = 75,
-    HIGH_B = 120,
-    MAX_B = 180;
+    HIGH_B = 180,
+    MAX_B = 225;
 
 /* time */
-const unsigned long
+const long
     RUNTIME = 14400000,             // 4 hours
     EXPIRE = millis() + RUNTIME;    // go out at this time
 
-unsigned long
+long
     startTime = 0,                  // start
     prevTime = 0,                   // last clock tick()
     currentModeExpiry = 0;        // time remaining in current mode
@@ -33,11 +33,10 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO
 int mode = 0,
     pulseDuration = 0,              // time remaining in current doIlluminate() action
     targetBrightness = 0,
-    currentBrightness = 0;
-
-unsigned long getElapsedTime() {
-    return millis() - startTime;
-}
+    currentBrightness = 0,
+    gutterPct = 3,
+    flarePct = 7,
+    steadyPct = 100 - gutterPct - flarePct;
 
 uint32_t getColorAndBrightnessFromRed(int red) {
     int green, blue;
@@ -84,18 +83,33 @@ int getNewKeyBrightness() {
     return newBrightness;
 }
 
+void setModeRatios(){
+    long remainingLife = RUNTIME - (millis() - startTime);
+    if(remainingLife < (RUNTIME/8)) {
+        flarePct = 5;
+        gutterPct = 25;
+        steadyPct = 100 - flarePct - gutterPct;
+    }
+    else if(remainingLife < (RUNTIME/4)) {
+        flarePct = 3;
+        gutterPct = 7;
+        steadyPct = 100 - flarePct - gutterPct;
+    }
+    else if (remainingLife < 0) {
+        gutterPct = 90;
+        flarePct = 0;
+        steadyPct = 100 - flarePct - gutterPct;
+    }
+}
 
 // return a code for a new mode
-// 0 = steady
-// 1 = flare
-// 2 = gutter
 int getNewMode() {
     int newMode = 0;
     int diceRoll = random(0, 100);
-    if (diceRoll < 90) {
+    if (diceRoll < steadyPct) {
         newMode = STEADY;
     }
-    else if (diceRoll < 97) {
+    else if (diceRoll < flarePct) {
         newMode = FLARE;
     }
     else {
@@ -105,27 +119,27 @@ int getNewMode() {
 }
 
 // figure out how long to stay in this mode
-unsigned long getModeDuration() {
-    unsigned long duration = 0;
+long getModeDuration() {
+    long duration = 0;
     switch(mode) {
         case FLARE:
-            duration = random(3000, 6000);
+            duration = random(500, 2000);
             break;
         case GUTTER:
             duration = random(2000, 5000);
             break;
         default:
-            duration = random(180000, 300000);
+            duration = random(18000, 30000);
             break;
     }
     return duration;
 }
 
-unsigned long getPulseDuration() {
+long getPulseDuration() {
     int pulse;
     switch(mode) {
         case FLARE:
-            pulse = random(2, 3);
+            pulse = random(3, 6);
             break;
         case GUTTER:
             pulse = random(4, 8);
@@ -161,10 +175,11 @@ void setup() {
 }
 
 void loop() {
-    unsigned long currentTime = millis();
+    long currentTime = millis();
     if (currentTime - prevTime > TICK_RATE) {
         prevTime = currentTime;
         if (currentModeExpiry <= currentTime) {
+            setModeRatios();
             mode = getNewMode();
             currentModeExpiry = getModeDuration() + currentTime;
             pulseDuration = 0;
