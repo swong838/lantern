@@ -10,21 +10,21 @@ const int
     FLARE = 1,
     GUTTER = 2,
     TICK_RATE = 10,  
-    LOW_B = 45,
-    LOWISH_B = 75,
+    LOW_B = 24,
+    LOWISH_B = 40,
     MID_B = 75,
     HIGH_B = 180,
     MAX_B = 225;
 
 /* time */
 const long
-    RUNTIME = 14400000,             // 4 hours
-    EXPIRE = millis() + RUNTIME;    // go out at this time
+    RUNTIME = 14400000,   // 4 hour time
+    EXPIRE = millis() + RUNTIME;    // permanently gutter out at this time
 
 long
     startTime = 0,                  // start
     prevTime = 0,                   // last clock tick()
-    currentModeExpiry = 0;        // time remaining in current mode
+    currentModeExpiry = 0;          // time remaining in current mode
 
 /* instantiate Pixel object */
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
@@ -34,8 +34,8 @@ int mode = 0,
     pulseDuration = 0,              // time remaining in current doIlluminate() action
     targetBrightness = 0,
     currentBrightness = 0,
-    gutterPct = 3,
-    flarePct = 7,
+    gutterPct = 0,
+    flarePct = 6,
     steadyPct = 100 - gutterPct - flarePct;
 
 uint32_t getColorAndBrightnessFromRed(int red) {
@@ -85,7 +85,12 @@ int getNewKeyBrightness() {
 
 void setModeRatios(){
     long remainingLife = RUNTIME - (millis() - startTime);
-    if(remainingLife < (RUNTIME/8)) {
+    if (remainingLife < (RUNTIME/16)) {
+        flarePct = 0;
+        gutterPct = 100;
+        steadyPct = 0;
+    } 
+    else if(remainingLife < (RUNTIME/8)) {
         flarePct = 5;
         gutterPct = 25;
         steadyPct = 100 - flarePct - gutterPct;
@@ -93,11 +98,6 @@ void setModeRatios(){
     else if(remainingLife < (RUNTIME/4)) {
         flarePct = 3;
         gutterPct = 7;
-        steadyPct = 100 - flarePct - gutterPct;
-    }
-    else if (remainingLife < 0) {
-        gutterPct = 90;
-        flarePct = 0;
         steadyPct = 100 - flarePct - gutterPct;
     }
 }
@@ -142,10 +142,10 @@ long getPulseDuration() {
             pulse = random(3, 6);
             break;
         case GUTTER:
-            pulse = random(4, 8);
+            pulse = random(11, 15);
             break;    
         default:
-            pulse = random(20, 50);
+            pulse = random(35, 50);
             break;
     }
     return pulse;
