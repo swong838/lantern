@@ -10,10 +10,10 @@ const int
     FLARE = 1,
     GUTTER = 2,
     TICK_RATE = 10,  
-    LOW_B = 24,
-    LOWISH_B = 40,
+    LOW_B = 27,
+    LOWISH_B = 36,
     MID_B = 75,
-    HIGH_B = 180,
+    HIGH_B = 200,
     MAX_B = 225;
 
 /* time */
@@ -145,7 +145,7 @@ long getPulseDuration() {
             pulse = random(11, 15);
             break;    
         default:
-            pulse = random(35, 50);
+            pulse = random(45, 65);
             break;
     }
     return pulse;
